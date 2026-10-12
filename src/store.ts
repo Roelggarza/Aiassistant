@@ -9,7 +9,7 @@ const K = {
 } as const;
 
 /** Keep in sync with package.json version. Stamped onto every run as appVersion. */
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.2.0';
 
 /** Max runs kept locally. Traces are the future training set — keep plenty. */
 export const RUN_CAP = 1000;
@@ -81,7 +81,18 @@ export function loadRuns(): RunEntry[] {
 }
 
 export function saveRuns(r: RunEntry[]) {
-  localStorage.setItem(K.runs, JSON.stringify(r.slice(0, RUN_CAP)));
+  const capped = r.slice(0, RUN_CAP);
+  try {
+    localStorage.setItem(K.runs, JSON.stringify(capped));
+  } catch {
+    // Storage full (large traces): halve the log and retry once rather than
+    // losing the newest runs. In-memory state keeps working regardless.
+    try {
+      localStorage.setItem(K.runs, JSON.stringify(capped.slice(0, Math.floor(RUN_CAP / 2))));
+    } catch {
+      /* give up silently */
+    }
+  }
 }
 
 export const uid = () =>
