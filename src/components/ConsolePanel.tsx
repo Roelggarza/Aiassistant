@@ -4,6 +4,7 @@ import { AGENTS, agentMeta } from '../agents/registry';
 import { askJev, formatAnswer } from '../agents/jev';
 import { hermesCliCommand } from '../agents/hermes';
 import { buildHandoff } from '../agents/muse';
+import { findExamples, withExamples } from '../learn';
 import { loadSettings, uid } from '../store';
 import RunLog from './RunLog';
 
@@ -18,6 +19,7 @@ export default function ConsolePanel({ runs, addRun, updateRun }: { runs: RunEnt
   const [task, setTask] = useState('');
   const [out, setOut] = useState('');
   const [busy, setBusy] = useState(false);
+  const [learn, setLearn] = useState(true);
 
   const dispatch = async () => {
     const t = task.trim();
@@ -28,10 +30,12 @@ export default function ConsolePanel({ runs, addRun, updateRun }: { runs: RunEnt
     const t0 = Date.now();
     try {
       if (agent === 'jev') {
+        const exs = learn ? findExamples(runs, 'triage.route') : [];
+        const stateForApi = withExamples(t, exs);
         const r = await askJev({
           endpoint: s.jevEndpoint,
           apiKey: s.jevKey,
-          state: t,
+          state: stateForApi,
           questions: {
             actionable: { type: 'noul', instructions: 'Is this task clear and actionable as written?' },
             owner: {
@@ -46,23 +50,23 @@ export default function ConsolePanel({ runs, addRun, updateRun }: { runs: RunEnt
           },
         });
         const text = Object.entries(r.answers).map(([id, a]) => formatAnswer(id, a)).join('\n');
-        setOut(text);
-        addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', task: 'triage.route', model: r.model, latencyMs: Date.now() - t0, input: t.slice(0, 300), output: text, ok: true });
+        setOut((exs.length ? `📚 learned from ${exs.length} past example${exs.length > 1 ? 's' : ''}\n` : '') + text);
+        addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', task: 'triage.route', model: r.model, latencyMs: Date.now() - t0, input: stateForApi, output: text, ok: true });
       } else if (agent === 'hermes') {
         const cmd = hermesCliCommand(t);
         const text = `Queued for Hermes. Run on the box:\n${cmd}`;
         setOut(text);
-        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', task: 'queue.hermes', latencyMs: Date.now() - t0, input: t.slice(0, 300), output: text, ok: true });
+        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', task: 'queue.hermes', latencyMs: Date.now() - t0, input: t, output: text, ok: true });
       } else {
         const packet = buildHandoff(t);
         setOut(packet + '\n\n(Copy this into chat with Muse AI.)');
-        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', task: 'handoff.build', latencyMs: Date.now() - t0, input: t.slice(0, 300), output: 'Handoff packet built.', ok: true });
+        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', task: 'handoff.build', latencyMs: Date.now() - t0, input: t, output: 'Handoff packet built.', ok: true });
         try { await navigator.clipboard.writeText(packet); } catch { /* noop */ }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setOut(msg);
-      addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', task: 'triage.route', latencyMs: Date.now() - t0, input: t.slice(0, 300), output: msg, ok: false });
+      addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', task: 'triage.route', latencyMs: Date.now() - t0, input: t, output: msg, ok: false });
     } finally {
       setBusy(false);
     }
@@ -91,6 +95,12 @@ export default function ConsolePanel({ runs, addRun, updateRun }: { runs: RunEnt
           <button className="btn" onClick={dispatch} disabled={busy || !task.trim()}>
             {busy ? 'Dispatching…' : `Dispatch to ${agentMeta(agent).name}`}
           </button>
+          {agent === 'jev' && (
+            <label className="dim" style={{ fontSize: 12, alignSelf: 'center', cursor: 'pointer' }}>
+              <input type="checkbox" checked={learn} onChange={(e) => setLearn(e.target.checked)} style={{ marginRight: 6 }} />
+              📚 learn from my past triage
+            </label>
+          )}
         </div>
         {out && <pre className="out">{out}</pre>}
       </div>

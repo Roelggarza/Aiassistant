@@ -39,7 +39,7 @@ export default function App() {
       <Sidebar view={view} setView={setView} agentVersion={agentVersion} />
       <main className="main">
         {view === 'console' && <ConsolePanel runs={runs} addRun={addRun} updateRun={updateRun} />}
-        {view === 'jev' && <JevPanel addRun={addRun} />}
+        {view === 'jev' && <JevPanel runs={runs} addRun={addRun} />}
         {view === 'hermes' && <HermesPanel addRun={addRun} />}
         {view === 'muse' && <MusePanel addRun={addRun} />}
         {view === 'notes' && <NotesPanel />}

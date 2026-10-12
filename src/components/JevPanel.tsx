@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { JevQuestion, JevQuestionType, RunEntry } from '../types';
 import { askJev, formatAnswer } from '../agents/jev';
+import { findExamples, withExamples } from '../learn';
 import { loadSettings, uid } from '../store';
 
 interface Draft {
@@ -36,11 +37,12 @@ function parseCriteria(d: Draft): JevQuestion['criteria'] | undefined {
   return undefined;
 }
 
-export default function JevPanel({ addRun }: { addRun: (r: RunEntry) => void }) {
+export default function JevPanel({ runs, addRun }: { runs: RunEntry[]; addRun: (r: RunEntry) => void }) {
   const [state, setState] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([newDraft()]);
   const [out, setOut] = useState('');
   const [busy, setBusy] = useState(false);
+  const [learn, setLearn] = useState(true);
 
   const setDraft = (i: number, patch: Partial<Draft>) =>
     setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, ...patch } : d)));
@@ -64,17 +66,21 @@ export default function JevPanel({ addRun }: { addRun: (r: RunEntry) => void }) 
     setOut('Asking Jev…');
     const t0 = Date.now();
     const typeTags = [...new Set(drafts.filter((d) => d.instructions.trim()).map((d) => d.type))].join('+');
+    const taskLabel = `judge.workbench${typeTags ? ':' + typeTags : ''}`;
+    // Per-user learning: past GOOD runs for this exact task become few-shot examples.
+    const exs = learn ? findExamples(runs, taskLabel) : [];
+    const stateForApi = withExamples(state.trim(), exs);
     try {
-      const r = await askJev({ endpoint: s.jevEndpoint, apiKey: s.jevKey, state: state.trim(), questions });
+      const r = await askJev({ endpoint: s.jevEndpoint, apiKey: s.jevKey, state: stateForApi, questions });
       const lines = Object.entries(r.answers).map(([id, a]) => formatAnswer(id, a));
       const usage = r.usage?.input_tokens ? ` · ${r.usage.input_tokens} in-tokens` : '';
       const text = `model ${r.model}${usage}\n` + lines.join('\n');
-      setOut(text);
-      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', task: `judge.workbench${typeTags ? ':' + typeTags : ''}`, model: r.model, latencyMs: Date.now() - t0, input: state.trim().slice(0, 300), output: text, ok: true });
+      setOut((exs.length ? `📚 learned from ${exs.length} past example${exs.length > 1 ? 's' : ''}\n` : '') + text);
+      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', task: taskLabel, model: r.model, latencyMs: Date.now() - t0, input: stateForApi, output: text, ok: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setOut(msg);
-      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', task: `judge.workbench${typeTags ? ':' + typeTags : ''}`, latencyMs: Date.now() - t0, input: state.trim().slice(0, 300), output: msg, ok: false });
+      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', task: taskLabel, latencyMs: Date.now() - t0, input: stateForApi, output: msg, ok: false });
     } finally {
       setBusy(false);
     }
@@ -125,6 +131,10 @@ export default function JevPanel({ addRun }: { addRun: (r: RunEntry) => void }) 
         <div className="btn-row">
           <button className="btn ghost" onClick={() => setDrafts((ds) => [...ds, newDraft()])}>+ question</button>
           <button className="btn" onClick={run} disabled={busy}>{busy ? 'Asking…' : 'Ask Jev'}</button>
+          <label className="dim" style={{ fontSize: 12, alignSelf: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={learn} onChange={(e) => setLearn(e.target.checked)} style={{ marginRight: 6 }} />
+            📚 learn from my past judgments
+          </label>
         </div>
         {out && <pre className="out">{out}</pre>}
       </div>
