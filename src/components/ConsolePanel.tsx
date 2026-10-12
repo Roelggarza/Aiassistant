@@ -13,7 +13,7 @@ import RunLog from './RunLog';
  * - hermes: queues with the CLI command (until the gateway is up).
  * - muse: builds a handoff packet to paste into chat.
  */
-export default function ConsolePanel({ runs, addRun }: { runs: RunEntry[]; addRun: (r: RunEntry) => void }) {
+export default function ConsolePanel({ runs, addRun, updateRun }: { runs: RunEntry[]; addRun: (r: RunEntry) => void; updateRun: (id: string, patch: Partial<RunEntry>) => void }) {
   const [agent, setAgent] = useState<AgentId>('jev');
   const [task, setTask] = useState('');
   const [out, setOut] = useState('');
@@ -25,6 +25,7 @@ export default function ConsolePanel({ runs, addRun }: { runs: RunEntry[]; addRu
     const s = loadSettings();
     setBusy(true);
     setOut('Working…');
+    const t0 = Date.now();
     try {
       if (agent === 'jev') {
         const r = await askJev({
@@ -46,22 +47,22 @@ export default function ConsolePanel({ runs, addRun }: { runs: RunEntry[]; addRu
         });
         const text = Object.entries(r.answers).map(([id, a]) => formatAnswer(id, a)).join('\n');
         setOut(text);
-        addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', input: t.slice(0, 300), output: text, ok: true });
+        addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', task: 'triage.route', model: r.model, latencyMs: Date.now() - t0, input: t.slice(0, 300), output: text, ok: true });
       } else if (agent === 'hermes') {
         const cmd = hermesCliCommand(t);
         const text = `Queued for Hermes. Run on the box:\n${cmd}`;
         setOut(text);
-        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', input: t.slice(0, 300), output: text, ok: true });
+        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', task: 'queue.hermes', latencyMs: Date.now() - t0, input: t.slice(0, 300), output: text, ok: true });
       } else {
         const packet = buildHandoff(t);
         setOut(packet + '\n\n(Copy this into chat with Muse AI.)');
-        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', input: t.slice(0, 300), output: 'Handoff packet built.', ok: true });
+        addRun({ id: uid(), ts: Date.now(), agent, kind: 'handoff', task: 'handoff.build', latencyMs: Date.now() - t0, input: t.slice(0, 300), output: 'Handoff packet built.', ok: true });
         try { await navigator.clipboard.writeText(packet); } catch { /* noop */ }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setOut(msg);
-      addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', input: t.slice(0, 300), output: msg, ok: false });
+      addRun({ id: uid(), ts: Date.now(), agent, kind: 'ask', task: 'triage.route', latencyMs: Date.now() - t0, input: t.slice(0, 300), output: msg, ok: false });
     } finally {
       setBusy(false);
     }
@@ -96,7 +97,7 @@ export default function ConsolePanel({ runs, addRun }: { runs: RunEntry[]; addRu
 
       <div className="panel">
         <h3>Run log</h3>
-        <RunLog runs={runs} />
+        <RunLog runs={runs} updateRun={updateRun} />
       </div>
     </div>
   );

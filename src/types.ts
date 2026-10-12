@@ -20,7 +20,25 @@ export interface RunEntry {
   input: string;
   output: string;
   ok: boolean;
+  // ---- trace fields (Overmind-ready fine-tune data) ----
+  /** Narrow task label, e.g. 'triage.route', 'judge.workbench', 'handoff.build'. */
+  task?: string;
+  /** Serving model id, when known (e.g. Jev's model). */
+  model?: string;
+  /** Wall-clock latency of the run in ms. */
+  latencyMs?: number;
+  /** Human quality signal — the label that makes a trace training-grade. */
+  verdict?: RunVerdict;
+  /** Corrected output when verdict === 'edited'. */
+  editedOutput?: string;
+  /** Groups runs from one app session. */
+  sessionId?: string;
+  /** Harness version that produced the run. */
+  appVersion?: string;
 }
+
+/** Human quality signal on a run. Unset = not yet judged. */
+export type RunVerdict = 'good' | 'edited' | 'rejected';
 
 // ---- Jev (TypeSafe System One) wire types ----
 export type JevQuestionType = 'noul' | 'choice' | 'score';

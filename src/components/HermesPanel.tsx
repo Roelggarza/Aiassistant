@@ -15,7 +15,7 @@ export default function HermesPanel({ addRun }: { addRun: (r: RunEntry) => void 
     setProbeOut('Probing…');
     const r = await probeHermes(s.hermesUrl);
     setProbeOut(r.message);
-    addRun({ id: uid(), ts: Date.now(), agent: 'hermes', kind: 'probe', input: s.hermesUrl || '(no url)', output: r.message, ok: r.ok });
+    addRun({ id: uid(), ts: Date.now(), agent: 'hermes', kind: 'probe', task: 'probe.gateway', input: s.hermesUrl || '(no url)', output: r.message, ok: r.ok });
     setProbing(false);
   };
 
@@ -24,7 +24,7 @@ export default function HermesPanel({ addRun }: { addRun: (r: RunEntry) => void 
     const cmd = hermesCliCommand(task.trim());
     setQueued(cmd);
     addRun({
-      id: uid(), ts: Date.now(), agent: 'hermes', kind: 'handoff',
+      id: uid(), ts: Date.now(), agent: 'hermes', kind: 'handoff', task: 'queue.hermes',
       input: task.trim().slice(0, 300),
       output: `Queued (Hermes not reachable yet). Run on the box:\n${cmd}`,
       ok: true,

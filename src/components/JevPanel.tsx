@@ -62,17 +62,19 @@ export default function JevPanel({ addRun }: { addRun: (r: RunEntry) => void }) 
     }
     setBusy(true);
     setOut('Asking Jev…');
+    const t0 = Date.now();
+    const typeTags = [...new Set(drafts.filter((d) => d.instructions.trim()).map((d) => d.type))].join('+');
     try {
       const r = await askJev({ endpoint: s.jevEndpoint, apiKey: s.jevKey, state: state.trim(), questions });
       const lines = Object.entries(r.answers).map(([id, a]) => formatAnswer(id, a));
       const usage = r.usage?.input_tokens ? ` · ${r.usage.input_tokens} in-tokens` : '';
       const text = `model ${r.model}${usage}\n` + lines.join('\n');
       setOut(text);
-      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', input: state.trim().slice(0, 300), output: text, ok: true });
+      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', task: `judge.workbench${typeTags ? ':' + typeTags : ''}`, model: r.model, latencyMs: Date.now() - t0, input: state.trim().slice(0, 300), output: text, ok: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setOut(msg);
-      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', input: state.trim().slice(0, 300), output: msg, ok: false });
+      addRun({ id: uid(), ts: Date.now(), agent: 'jev', kind: 'ask', task: `judge.workbench${typeTags ? ':' + typeTags : ''}`, latencyMs: Date.now() - t0, input: state.trim().slice(0, 300), output: msg, ok: false });
     } finally {
       setBusy(false);
     }

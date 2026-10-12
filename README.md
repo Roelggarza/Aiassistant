@@ -42,7 +42,37 @@ paste it into chat. I pick it up with full context.
 - **Hermes panel** — gateway probe, task queue, bring-up checklist.
 - **Muse panel** — handoff packet builder.
 - **Notes** — resurrected from the original app, localStorage-backed.
-- **Run log** — every dispatch recorded, newest first.
+- **Run log** — every dispatch recorded, newest first. Each run carries a
+  **trace record**: task label, model, latency, session id, and your **verdict**
+  (👍 good / ✏️ edited / 👎 rejected). Judged runs export as JSONL —
+  training-grade data for a future fine-tune loop.
+
+## Trace data → fine-tune (Overmind-style)
+
+The run log is a future training set. Every run is stamped with a narrow
+**task label** (`triage.route`, `judge.workbench:noul`, `handoff.build`,
+`queue.hermes`, `probe.gateway`), the serving model, latency, session id,
+and app version.
+
+**To build the dataset:** use the console normally, then judge runs in the
+log — 👍 trains on the output as-is, ✏️ prompts for your corrected version
+(becomes `gold_output`), 👎 marks a negative example. Hit **Export traces
+(.jsonl)** to download `harness-traces-YYYYMMDD.jsonl`:
+
+```json
+{"trace_version":1,"id":"...","ts":"2026-10-12T08:55:00.000Z","agent":"jev",
+ "task":"triage.route","input":"...","output":"...","gold_output":"...",
+ "verdict":"good","model":"...","latency_ms":1234}
+```
+
+That file feeds a dataset → evals → fine-tune loop (e.g.
+[overmind-core/overmind](https://github.com/overmind-core/overmind)):
+distill your most repetitive loop — task routing is the prime candidate —
+into a small local model the Harness can call instead of a big API.
+
+Traces stay in the browser's localStorage (cap 1000 runs, v2 schema with
+automatic v1 migration). Nothing uploads anywhere — export is an explicit
+button press, and API keys are never included in traces.
 
 ## Honest notes
 

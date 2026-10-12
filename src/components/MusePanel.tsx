@@ -14,7 +14,7 @@ export default function MusePanel({ addRun }: { addRun: (r: RunEntry) => void })
     const p = buildHandoff(task.trim(), context);
     setPacket(p);
     setCopied(false);
-    addRun({ id: uid(), ts: Date.now(), agent: 'muse', kind: 'handoff', input: task.trim().slice(0, 300), output: 'Handoff packet built — paste it into chat.', ok: true });
+    addRun({ id: uid(), ts: Date.now(), agent: 'muse', kind: 'handoff', task: 'handoff.build', input: task.trim().slice(0, 300), output: 'Handoff packet built — paste it into chat.', ok: true });
   };
 
   const copy = async () => {
