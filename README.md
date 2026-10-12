@@ -47,6 +47,23 @@ paste it into chat. I pick it up with full context.
   (👍 good / ✏️ edited / 👎 rejected). Judged runs export as JSONL —
   training-grade data for a future fine-tune loop.
 
+## v1 — installable, learning, shippable
+
+**Live:** https://roelggarza.github.io/Aiassistant/
+
+**Install it:** open the URL in Chrome/Edge/Safari → *Add to Home Screen* (phone)
+or *Install* (desktop address bar). Works offline after first load; the app
+shell is cached, API calls always go to network.
+
+**It learns from you:** past runs you judged 👍 for the same task are injected
+as few-shot examples on the next dispatch (`src/learn.ts`). Toggle per panel
+with the "📚 learn from…" checkbox. No training, no server — retrieval over
+your own traces.
+
+**Your data stays yours:** everything lives in this browser's localStorage
+(cap 1000 runs, quota-guarded). Export traces any time as JSONL; clear them
+via *Clear site data*. API keys are never included in traces or exports.
+
 ## Trace data → fine-tune (Overmind-style)
 
 The run log is a future training set. Every run is stamped with a narrow

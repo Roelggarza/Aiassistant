@@ -25,7 +25,7 @@ export default function HermesPanel({ addRun }: { addRun: (r: RunEntry) => void 
     setQueued(cmd);
     addRun({
       id: uid(), ts: Date.now(), agent: 'hermes', kind: 'handoff', task: 'queue.hermes',
-      input: task.trim().slice(0, 300),
+      input: task.trim(),
       output: `Queued (Hermes not reachable yet). Run on the box:\n${cmd}`,
       ok: true,
     });
